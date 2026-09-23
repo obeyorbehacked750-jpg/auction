@@ -1,0 +1,884 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Jojo Auction</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;600;700&family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        jojo: {
+                            purple: '#4c1d95',
+                            darkPurple: '#2e1065',
+                            gold: '#fbbf24',
+                            dark: '#0f172a',
+                            card: '#1e1b4b',
+                            accent: '#c084fc'
+                        }
+                    },
+                    fontFamily: {
+                        title: ['Oswald', 'sans-serif'],
+                        body: ['Inter', 'sans-serif']
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body {
+            background-color: #0f172a;
+            color: #f8fafc;
+            font-family: 'Inter', sans-serif;
+            overflow-x: hidden;
+            min-height: 100vh;
+        }
+        h1, h2, h3, .font-title {
+            font-family: 'Oswald', sans-serif;
+        }
+        
+        .screen {
+            display: none;
+            min-height: 100vh;
+            width: 100%;
+        }
+        .screen.active {
+            display: flex;
+            animation: fadeIn 0.3s ease-in-out;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: scale(0.98); }
+            to { opacity: 1; transform: scale(1); }
+        }
+
+        .btn-gold {
+            background: linear-gradient(135deg, #fbbf24 0%, #d97706 100%);
+            color: #0f172a;
+            font-weight: 700;
+            transition: all 0.2s ease;
+            box-shadow: 0 4px 15px rgba(251, 191, 36, 0.3);
+        }
+        .btn-gold:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(251, 191, 36, 0.5);
+        }
+        .btn-gold:active {
+            transform: translateY(1px);
+        }
+
+        .btn-purple {
+            background: linear-gradient(135deg, #7e22ce 0%, #4c1d95 100%);
+            color: #ffffff;
+            border: 2px solid #fbbf24;
+            transition: all 0.2s ease;
+        }
+        .btn-purple:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 15px rgba(126, 34, 206, 0.5);
+        }
+
+        .jojo-card-border {
+            border: 2px solid #fbbf24;
+            box-shadow: 0 0 20px rgba(126, 34, 206, 0.4), inset 0 0 15px rgba(76, 29, 149, 0.3);
+        }
+
+        /* Custom scrollbar */
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: #0f172a; }
+        ::-webkit-scrollbar-thumb { background: #4c1d95; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #fbbf24; }
+    </style>
+</head>
+<body class="antialiased selection:bg-jojo-gold selection:text-jojo-dark">
+
+    <div id="alert-modal" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-jojo-card border-2 border-red-500 rounded-2xl p-6 max-w-sm w-full text-center shadow-2xl transform transition-all scale-100">
+            <div class="text-red-500 text-5xl mb-3 font-title">⚠️</div>
+            <h3 class="text-2xl font-bold mb-2 font-title text-white" id="alert-title">Увага</h3>
+            <p class="text-gray-300 mb-6 text-sm leading-relaxed" id="alert-message">Щось пішло не так.</p>
+            <button onclick="closeAlert()" class="btn-gold py-2 px-8 rounded-xl w-full uppercase tracking-wider font-title">Зрозуміло</button>
+        </div>
+    </div>
+
+    <div id="inventory-modal" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 hidden flex flex-col items-center justify-center p-4">
+        <div class="bg-jojo-card border-2 border-jojo-gold rounded-2xl p-6 max-w-2xl w-full shadow-2xl flex flex-col max-h-[80vh]">
+            <div class="flex justify-between items-center mb-4 border-b border-purple-800/80 pb-2">
+                <h3 class="text-2xl font-bold font-title text-jojo-gold uppercase">Інвентар Гравців</h3>
+                <button onclick="closeInventoryModal()" class="text-gray-400 hover:text-white transition-colors">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
+                </button>
+            </div>
+            <div id="inventory-modal-content" class="overflow-y-auto pr-2 space-y-4 flex-1">
+                <!-- Injected via JS -->
+            </div>
+        </div>
+    </div>
+
+    <main id="screen-menu" class="screen active flex-col items-center justify-center relative p-6">
+        <div class="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-purple-900/40 via-jojo-dark to-jojo-dark pointer-events-none"></div>
+        
+        <div class="z-10 text-center max-w-lg w-full flex flex-col items-center">
+            <div class="inline-block bg-purple-900/50 border border-purple-500/30 text-purple-300 px-4 py-1 rounded-full text-xs font-semibold tracking-widest uppercase mb-4">
+                ⭐ JoJo's Bizarre Adventure ⭐
+            </div>
+            
+            <h1 class="text-6xl sm:text-7xl md:text-8xl font-title text-jojo-gold tracking-wider mb-2 drop-shadow-[0_5px_15px_rgba(251,191,36,0.4)]">
+                JOJO AUCTION
+            </h1>
+            
+            <p class="text-lg md:text-xl text-purple-300 mb-10 font-title uppercase tracking-widest">
+                Аукціон Стендів Мультивсесвіту
+            </p>
+            
+            <button onclick="switchScreen('screen-setup'); renderPlayerInputs();" class="btn-gold font-title text-2xl py-4 px-12 rounded-full uppercase tracking-wider text-xl w-full sm:w-auto">
+                Грати
+            </button>
+        </div>
+    </main>
+
+    <main id="screen-setup" class="screen flex-col items-center justify-center p-4 sm:p-6 md:p-8">
+        <div class="w-full max-w-2xl bg-jojo-card p-6 sm:p-8 rounded-2xl jojo-card-border relative my-auto">
+            <!-- Close button top left -->
+            <button onclick="switchScreen('screen-menu')" class="absolute top-4 left-4 text-gray-400 hover:text-jojo-gold flex items-center gap-1 transition-colors text-sm font-semibold">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18" /></svg>
+                Закрити
+            </button>
+            
+            <h2 class="text-3xl sm:text-4xl font-title text-center text-jojo-gold mb-6 mt-4 uppercase tracking-wide">
+                Налаштування Аукціону
+            </h2>
+            
+            <div class="space-y-6">
+                <!-- Game Settings -->
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 bg-slate-900/60 p-4 rounded-xl border border-purple-900/50">
+                    <div>
+                        <label class="block text-xs font-bold text-purple-300 uppercase tracking-wider mb-2">Кількість гравців (2 - 5)</label>
+                        <select id="player-count" onchange="renderPlayerInputs()" class="w-full bg-slate-900 border border-purple-500/50 text-white rounded-lg p-3 focus:outline-none focus:border-jojo-gold">
+                            <option value="2">2 Гравці</option>
+                            <option value="3" selected>3 Гравці</option>
+                            <option value="4">4 Гравці</option>
+                            <option value="5">5 Гравців</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-purple-300 uppercase tracking-wider mb-2">Початковий баланс ($)</label>
+                        <input type="number" id="default-money" value="25" min="5" step="1" class="w-full bg-slate-900 border border-purple-500/50 text-white rounded-lg p-3 focus:outline-none focus:border-jojo-gold">
+                    </div>
+                </div>
+
+                <!-- Players Container -->
+                <div>
+                    <label class="block text-xs font-bold text-purple-300 uppercase tracking-wider mb-2">Гравці та Емодзі</label>
+                    <div id="players-container" class="space-y-3 max-h-[40vh] overflow-y-auto pr-1">
+                        <!-- Dynamic inputs injected via JS -->
+                    </div>
+                </div>
+
+                <div class="pt-4 text-center">
+                    <button onclick="startGame()" class="btn-gold font-title text-xl py-3.5 px-10 rounded-xl uppercase tracking-wider w-full sm:w-auto">
+                        Почати гру
+                    </button>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <main id="screen-game" class="screen flex-col items-center justify-between p-4 pb-24 md:pb-20 relative">
+        <!-- Header -->
+        <header class="w-full max-w-5xl flex justify-between items-center py-2 px-1">
+            <div class="flex items-center gap-3">
+                <span id="current-card-counter" class="bg-jojo-purple text-jojo-gold font-title px-4 py-1.5 rounded-xl border border-jojo-gold/50 text-base shadow">
+                    Карта 1/12
+                </span>
+            </div>
+            <div class="flex gap-2">
+                <button onclick="showInventoryModal()" class="bg-purple-900/80 hover:bg-purple-800 text-purple-100 border border-purple-500/50 px-4 py-2 rounded-xl font-title flex items-center gap-2 transition-all shadow text-sm">
+                    <span class="hidden sm:inline">Інвентар</span>
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" /></svg>
+                </button>
+                <button onclick="endGame()" class="bg-red-900/80 hover:bg-red-800 text-red-100 border border-red-500/50 px-4 py-2 rounded-xl font-title flex items-center gap-2 transition-all shadow text-sm">
+                    <span class="hidden sm:inline">Зупинити</span>
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8 7a1 1 0 00-1 1v4a1 1 0 001 1h4a1 1 0 001-1V8a1 1 0 00-1-1H8z" clip-rule="evenodd" /></svg>
+                </button>
+            </div>
+        </header>
+
+        <!-- Main Card Display and Auction Panel -->
+        <div class="w-full max-w-5xl my-auto grid grid-cols-1 md:grid-cols-12 gap-6 items-center justify-center">
+            
+            <!-- Stand Card Visual -->
+            <div class="md:col-span-7 lg:col-span-6 bg-jojo-card rounded-2xl overflow-hidden jojo-card-border flex flex-col relative group max-w-md mx-auto w-full">
+                <!-- Peak Badge -->
+                <div id="stand-peak-badge" class="absolute top-3 right-3 bg-gradient-to-r from-red-600 to-amber-500 text-white font-title text-sm px-3 py-1 rounded-full border border-yellow-300 shadow-xl z-20 flex items-center gap-1 font-bold">
+                    🔥 ПІК (PEAK)
+                </div>
+                
+                <!-- Card Image Container -->
+                <div class="relative h-64 sm:h-80 w-full overflow-hidden bg-slate-900 flex items-center justify-center">
+                    <img id="stand-img" src="" alt="Stand Image" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500">
+                    <div class="absolute inset-0 bg-gradient-to-t from-jojo-card via-transparent to-transparent"></div>
+                </div>
+                
+                <div class="p-5 relative z-10 flex flex-col flex-1">
+                    <div class="flex justify-between items-start mb-1">
+                        <h3 id="stand-name" class="text-2xl sm:text-3xl font-title text-jojo-gold leading-tight uppercase">Stand Name</h3>
+                    </div>
+                    <p class="text-xs text-purple-300 font-semibold mb-3">
+                        Стартова ціна: <span id="stand-base-cost" class="text-emerald-400 font-bold text-sm">$1000</span>
+                    </p>
+                    <p id="stand-desc" class="text-sm text-gray-300 leading-relaxed italic line-clamp-4 min-h-[4rem]">
+                        Опис здібностей стенду...
+                    </p>
+                </div>
+            </div>
+
+            <!-- Auction Controls -->
+            <div class="md:col-span-5 lg:col-span-6 bg-slate-900/90 border border-purple-800/60 p-6 rounded-2xl shadow-2xl flex flex-col justify-center max-w-md mx-auto w-full">
+                <h3 class="text-2xl font-title text-jojo-gold mb-6 uppercase border-b border-purple-800/80 pb-2 text-center">
+                    🔨 Зробити Ставку
+                </h3>
+                
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-xs font-bold text-purple-300 uppercase mb-2">Переможець аукціону</label>
+                        <select id="auction-winner" class="w-full bg-slate-900 border border-purple-500/50 text-white rounded-xl p-3 text-base focus:outline-none focus:border-jojo-gold">
+                            <!-- Injected dynamically -->
+                        </select>
+                    </div>
+                    
+                    <div>
+                        <label class="block text-xs font-bold text-purple-300 uppercase mb-2">Фінальна сума ($)</label>
+                        <input type="number" id="auction-cost" min="0" step="1" class="w-full bg-slate-900 border border-purple-500/50 text-emerald-400 rounded-xl p-3 text-2xl font-bold font-title focus:outline-none focus:border-jojo-gold" placeholder="Введіть суму">
+                    </div>
+                    
+                    <div class="pt-2 space-y-2">
+                        <button onclick="processBid()" class="btn-gold font-title text-xl py-3 rounded-xl uppercase tracking-wider w-full">
+                            ОК — ПРОДАТИ
+                        </button>
+                        <button onclick="skipCard()" class="w-full text-xs text-gray-400 hover:text-gray-200 py-2 transition-colors uppercase font-semibold">
+                            Пропустити карту (Ніхто не купив)
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+        
+        <!-- Live Player Balances Bar -->
+        <div id="live-balances" class="fixed bottom-0 left-0 w-full bg-slate-950/95 border-t border-purple-800/80 px-4 py-3 flex gap-3 overflow-x-auto justify-start sm:justify-center z-30">
+            <!-- Balances injected here -->
+        </div>
+    </main>
+
+    <main id="screen-results" class="screen flex-col items-center justify-start p-4 sm:p-6 md:p-8 overflow-y-auto">
+        <div class="w-full max-w-5xl bg-jojo-card p-6 sm:p-8 rounded-2xl jojo-card-border my-6">
+            
+            <!-- Banner Container -->
+            <div id="banners-container" class="w-full mb-8 flex justify-center hidden">
+                <img id="winner-banner" src="assets/banners/rank_1.png" alt="Winner Banner" class="w-full max-w-2xl h-32 md:h-48 object-cover rounded-xl border-2 border-jojo-gold shadow-[0_0_20px_rgba(251,191,36,0.3)]">
+            </div>
+
+            <h2 class="text-4xl sm:text-5xl font-title text-center text-jojo-gold mb-1 uppercase tracking-wide">
+                Таблиця Лідерів
+            </h2>
+            <p class="text-center text-purple-300 mb-8 font-title uppercase tracking-widest text-sm">
+                Аукціон завершено • Рейтинг Гравців
+            </p>
+            
+            <div id="results-container" class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <!-- Result cards injected here -->
+            </div>
+
+            <div class="mt-10 text-center">
+                <button onclick="resetToMenu()" class="btn-purple font-title text-xl py-3.5 px-10 rounded-full uppercase tracking-wider">
+                    Повернутися до Меню
+                </button>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        const STANDS_DATA = [
+            {
+                id: 1,
+                name: "Зоряна Платина (Star Platinum)",
+                peak: true,
+                baseCost: 1,
+                description: "Неймовірна швидкість, абсолютна точність та нищівна сила. У піковій формі здатний зупиняти час на кілька секунд.",
+                image: "assets/cards/star_platinum.png",
+                fallbackBg: "linear-gradient(135deg, #3b82f6, #1e1b4b)"
+            },
+            {
+                id: 2,
+                name: "Світ (The World)",
+                peak: true,
+                baseCost: 1,
+                description: "Стенд Діо з величезною фізичною силою, здатний повністю зупиняти плин часу у всьому світі.",
+                image: "assets/cards/the_world.png",
+                fallbackBg: "linear-gradient(135deg, #eab308, #78350f)"
+            },
+            {
+                id: 3,
+                name: "Божевільний Діамант (Crazy Diamond)",
+                peak: false,
+                baseCost: 1,
+                description: "Має величезну силу та унікальну здатність «відновлювати» й лагодити будь-які зламані предмети та лікувати людей.",
+                image: "assets/cards/crazy_diamond.png",
+                fallbackBg: "linear-gradient(135deg, #ec4899, #831843)"
+            },
+            {
+                id: 4,
+                name: "Убивча Королева (Killer Queen)",
+                peak: true,
+                baseCost: 1,
+                description: "Перетворює будь-який предмет, до якого торкається, на бомбу. Має здатність «Bites the Dust» для повернення часу назад.",
+                image: "assets/cards/killer_queen.png",
+                fallbackBg: "linear-gradient(135deg, #f43f5e, #881337)"
+            },
+            {
+                id: 5,
+                name: "Золотий Досвід (Gold Experience)",
+                peak: false,
+                baseCost: 1,
+                description: "Здатний наділяти неживі предмети життям, створювати живі організми та замінювати пошкоджені органи.",
+                image: "assets/cards/gold_experience.png",
+                fallbackBg: "linear-gradient(135deg, #facc15, #713f12)"
+            },
+            {
+                id: 6,
+                name: "Багряний Король (King Crimson)",
+                peak: true,
+                baseCost: 1,
+                description: "Зтирає відрізки часу до 10 секунд та дозволяє передбачати майбутнє за допомогою епітафії.",
+                image: "assets/cards/king_crimson.png",
+                fallbackBg: "linear-gradient(135deg, #dc2626, #450a0a)"
+            },
+            {
+                id: 7,
+                name: "Кам'яне Море (Stone Free)",
+                peak: false,
+                baseCost: 1,
+                description: "Дозволяє розпускати власне тіло на міцні нитки для розвідки, захисту та атаки на відстані.",
+                image: "assets/cards/stone_free.png",
+                fallbackBg: "linear-gradient(135deg, #06b6d4, #164e63)"
+            },
+            {
+                id: 8,
+                name: "Брудні Справи за Копійки (D4C)",
+                peak: true,
+                baseCost: 1,
+                description: "Дозволяє власнику переміщатися між паралельними вимірами та залучати двійників для бою.",
+                image: "assets/cards/d4c.png",
+                fallbackBg: "linear-gradient(135deg, #a855f7, #3b0764)"
+            },
+            {
+                id: 9,
+                name: "М'який та Вологий (Soft & Wet)",
+                peak: false,
+                baseCost: 1,
+                description: "Випускає мильні бульбашки, здатні «викрадати» властивості об'єктів (тертя, зір, звук тощо).",
+                image: "assets/cards/soft_and_wet.png",
+                fallbackBg: "linear-gradient(135deg, #38bdf8, #0c4a6e)"
+            },
+            {
+                id: 10,
+                name: "Срібна Колісниця (Silver Chariot)",
+                peak: false,
+                baseCost: 1,
+                description: "Віртуозний фехтувальник із блискавичною швидкістю. Може скидати броню задля надлюдської спритності.",
+                image: "assets/cards/silver_chariot.png",
+                fallbackBg: "linear-gradient(135deg, #94a3b8, #1e293b)"
+            },
+            {
+                id: 11,
+                name: "Прогноз Погоди (Weather Report)",
+                peak: true,
+                baseCost: 1,
+                description: "Повний контроль над атмосферою, погодою, тиском та можливістю викликати отруйний дощ або равликів.",
+                image: "assets/cards/weather_report.png",
+                fallbackBg: "linear-gradient(135deg, #60a5fa, #1e3a8a)"
+            },
+            {
+                id: 12,
+                name: "Створений на Небесах (Made in Heaven)",
+                peak: true,
+                baseCost: 1,
+                description: "Прискорює час Всесвіту до нескінченності, створюючи новий цикл існування та долю для всіх.",
+                image: "assets/cards/made_in_heaven.png",
+                fallbackBg: "linear-gradient(135deg, #f472b6, #500724)"
+            },
+            {
+                id: 13,
+                name: "Бивень Акт 4 (Tusk Act 4)",
+                peak: true,
+                baseCost: 1,
+                description: "Використовує енергію Золотого Обертання. Здатен пробити будь-які бар'єри та просторові маніпуляції.",
+                image: "assets/cards/tusk_act_4.png",
+                fallbackBg: "linear-gradient(135deg, #ec4899, #9d174d)"
+            },
+            {
+                id: 14,
+                name: "Диво Тебе (Wonder of U)",
+                peak: true,
+                baseCost: 1,
+                description: "Втілення концепції лиха. Будь-хто, хто переслідує власника, неминуче стикається з фатальними випадковостями.",
+                image: "assets/cards/wonder_of_u.png",
+                fallbackBg: "linear-gradient(135deg, #475569, #0f172a)"
+            },
+            {
+                id: 15,
+                name: "Рука (The Hand)",
+                peak: false,
+                baseCost: 1,
+                description: "Стирає простір правою рукою, змушуючи всесвіт 'зшивати' залишену порожнечу. Вкрай небезпечний.",
+                image: "assets/cards/the_hand.png",
+                fallbackBg: "linear-gradient(135deg, #3b82f6, #1e3a8a)"
+            },
+            {
+                id: 16,
+                name: "Брама Раю (Heaven's Door)",
+                peak: true,
+                baseCost: 1,
+                description: "Перетворює людей на 'книги', дозволяючи читати їхні спогади та записувати туди абсолютні накази.",
+                image: "assets/cards/heavens_door.png",
+                fallbackBg: "linear-gradient(135deg, #fcd34d, #b45309)"
+            },
+            {
+                id: 17,
+                name: "Липкі Пальці (Sticky Fingers)",
+                peak: false,
+                baseCost: 1,
+                description: "Створює блискавки на будь-якій поверхні, дозволяючи розрізати об'єкти, ховатися або розчленовувати.",
+                image: "assets/cards/sticky_fingers.png",
+                fallbackBg: "linear-gradient(135deg, #60a5fa, #1e40af)"
+            },
+            {
+                id: 18,
+                name: "Відлуння Акт 3 (Echoes Act 3)",
+                peak: false,
+                baseCost: 1,
+                description: "Збільшує вагу цілі пропорційно до відстані до неї, використовуючи здібність '3 Freeze'.",
+                image: "assets/cards/echoes_act_3.png",
+                fallbackBg: "linear-gradient(135deg, #10b981, #064e3b)"
+            },
+            {
+                id: 19,
+                name: "Пурпуровий Серпанок (Purple Haze)",
+                peak: false,
+                baseCost: 1,
+                description: "Випускає смертоносний вірус, який пожирає живу плоть за лічені секунди. Вірус гине на світлі.",
+                image: "assets/cards/purple_haze.png",
+                fallbackBg: "linear-gradient(135deg, #a855f7, #581c87)"
+            },
+            {
+                id: 20,
+                name: "Колісниця Реквієм (Chariot Requiem)",
+                peak: true,
+                baseCost: 1,
+                description: "Керує душами. Міняє місцями душі людей навколо та змушує їхні власні тіла і стенди атакувати їх.",
+                image: "assets/cards/chariot_requiem.png",
+                fallbackBg: "linear-gradient(135deg, #94a3b8, #0f172a)"
+            },
+            {
+                id: 21,
+                name: "Білий Змій (Whitesnake)",
+                peak: true,
+                baseCost: 1,
+                description: "Вилучає зі свідомості жертви ДИСКИ спогадів та стендів, залишаючи людину в комі.",
+                image: "assets/cards/whitesnake.png",
+                fallbackBg: "linear-gradient(135deg, #f8fafc, #64748b)"
+            },
+            {
+                id: 22,
+                name: "Кілера Квін: Зараза (Bites the Dust)",
+                peak: true,
+                baseCost: 1,
+                description: "Створює часову петлю, підриваючи кожного, хто дізнається таємницю власника, повертаючи час на годину назад.",
+                image: "assets/cards/bites_the_dust.png",
+                fallbackBg: "linear-gradient(135deg, #fb7185, #881337)"
+            }
+        ];
+
+        let players = [];
+        let deck = [];
+        let currentCardIndex = 0;
+
+        const defaultEmojiImages = [
+            'assets/emojis/1.png',
+            'assets/emojis/2.png',
+            'assets/emojis/3.png',
+            'assets/emojis/4.png',
+            'assets/emojis/5.png'
+        ];
+
+        function showAlert(title, message) {
+            document.getElementById('alert-title').innerText = title;
+            document.getElementById('alert-message').innerText = message;
+            document.getElementById('alert-modal').classList.remove('hidden');
+        }
+
+        function closeAlert() {
+            document.getElementById('alert-modal').classList.add('hidden');
+        }
+
+        function switchScreen(screenId) {
+            const screens = document.querySelectorAll('.screen');
+            screens.forEach(screen => screen.classList.remove('active'));
+            
+            const targetScreen = document.getElementById(screenId);
+            if (targetScreen) {
+                targetScreen.classList.add('active');
+            } else {
+                console.error("Screen not found:", screenId);
+            }
+        }
+
+        function renderPlayerInputs() {
+            const count = parseInt(document.getElementById('player-count').value, 10);
+            const container = document.getElementById('players-container');
+            container.innerHTML = '';
+
+            for (let i = 0; i < count; i++) {
+                const playerDiv = document.createElement('div');
+                playerDiv.className = 'grid grid-cols-12 gap-3 items-center bg-slate-900/40 p-2.5 rounded-xl border border-purple-900/40';
+                
+                const emojiSrc = defaultEmojiImages[i % defaultEmojiImages.length];
+                
+                playerDiv.innerHTML = `
+                    <div class="col-span-3 sm:col-span-2 flex justify-center">
+                        <img id="player-emoji-img-${i}" src="${emojiSrc}" onerror="this.src='https://placehold.co/100x100/4c1d95/fbbf24?text=P${i+1}'" alt="Player ${i+1}" class="w-10 h-10 rounded-full border-2 border-jojo-gold object-cover bg-jojo-dark shadow-md">
+                        <input type="hidden" id="player-emoji-${i}" value="${emojiSrc}">
+                    </div>
+                    <div class="col-span-9 sm:col-span-10">
+                        <input type="text" id="player-name-${i}" value="Гравець ${i + 1}" placeholder="Ім'я гравця" class="w-full bg-slate-900 border border-purple-500/50 text-white rounded-lg p-2 font-semibold text-sm focus:outline-none focus:border-jojo-gold">
+                    </div>
+                `;
+                container.appendChild(playerDiv);
+            }
+        }
+
+        function startGame() {
+            const count = parseInt(document.getElementById('player-count').value, 10);
+            const defaultMoneyInput = parseInt(document.getElementById('default-money').value, 10);
+
+            if (isNaN(defaultMoneyInput) || defaultMoneyInput <= 0) {
+                showAlert("Помилка", "Будь ласка, вкажіть коректний початковий баланс!");
+                return;
+            }
+
+            players = [];
+            for (let i = 0; i < count; i++) {
+                const nameInput = document.getElementById(`player-name-${i}`).value.trim();
+                const emojiInput = document.getElementById(`player-emoji-${i}`).value;
+                
+                const playerName = nameInput || `Гравець ${i + 1}`;
+
+                players.push({
+                    id: i,
+                    name: playerName,
+                    emoji: emojiInput,
+                    money: defaultMoneyInput,
+                    inventory: []
+                });
+            }
+
+            // Shuffle Stands Deck
+            deck = [...STANDS_DATA].sort(() => Math.random() - 0.5);
+            currentCardIndex = 0;
+
+            switchScreen('screen-game');
+            updateAuctionWinnerOptions();
+            renderCurrentCard();
+            updateLiveBalances();
+        }
+
+        function renderCurrentCard() {
+            if (currentCardIndex >= deck.length) {
+                endGame();
+                return;
+            }
+
+            const currentStand = deck[currentCardIndex];
+            
+            // Counter
+            document.getElementById('current-card-counter').innerText = `Карта ${currentCardIndex + 1}/${deck.length}`;
+
+            // Stand Information
+            document.getElementById('stand-name').innerText = currentStand.name;
+            document.getElementById('stand-base-cost').innerText = `$1`;
+            document.getElementById('stand-desc').innerText = currentStand.description;
+
+            // Peak badge
+            const peakBadge = document.getElementById('stand-peak-badge');
+            if (currentStand.peak) {
+                peakBadge.classList.remove('hidden');
+            } else {
+                peakBadge.classList.add('hidden');
+            }
+
+            // Stand Image setup with placeholder fallback
+            const imgEl = document.getElementById('stand-img');
+            imgEl.src = currentStand.image;
+            imgEl.onerror = function() {
+                // Generate colorful styled placeholder
+                this.onerror = null;
+                const encodedText = encodeURIComponent(currentStand.name.split(' ')[0]);
+                this.src = `https://placehold.co/600x800/1e1b4b/fbbf24?text=${encodedText}`;
+            };
+
+            // Pre-fill cost input with starting price of $1
+            document.getElementById('auction-cost').value = 1;
+        }
+
+        function updateAuctionWinnerOptions() {
+            const select = document.getElementById('auction-winner');
+            select.innerHTML = '';
+            
+            players.forEach(player => {
+                const option = document.createElement('option');
+                option.value = player.id;
+                const isFull = player.inventory.length >= 3;
+                option.innerText = `${player.name} ($${player.money.toLocaleString()}) — ${player.inventory.length}/3 стендів${isFull ? ' (ПОВНИЙ)' : ''}`;
+                select.appendChild(option);
+            });
+        }
+
+        function updateLiveBalances() {
+            const container = document.getElementById('live-balances');
+            container.innerHTML = '';
+
+            players.forEach(player => {
+                const div = document.createElement('div');
+                div.className = 'bg-purple-950/80 border border-purple-600/50 rounded-xl px-3 py-1.5 flex items-center gap-2 whitespace-nowrap shadow-sm min-w-fit';
+                div.innerHTML = `
+                    <img src="${player.emoji}" onerror="this.src='https://placehold.co/100x100/4c1d95/fbbf24?text=${player.name.charAt(0)}'" class="w-6 h-6 rounded-full object-cover border border-purple-500/50">
+                    <span class="text-xs font-semibold text-gray-200">${player.name}:</span>
+                    <span class="text-xs font-bold text-emerald-400 font-title">$${player.money.toLocaleString()}</span>
+                    <span class="text-[10px] bg-purple-900/80 border border-purple-500/30 text-purple-200 px-1.5 py-0.5 rounded font-mono">${player.inventory.length}/3</span>
+                `;
+                container.appendChild(div);
+            });
+            
+            // Sync current balances into the select dropdown labels as well
+            updateAuctionWinnerOptions();
+        }
+
+        function processBid() {
+            if (currentCardIndex >= deck.length) return;
+
+            const winnerId = parseInt(document.getElementById('auction-winner').value, 10);
+            const cost = parseInt(document.getElementById('auction-cost').value, 10);
+
+            if (isNaN(winnerId) || isNaN(cost) || cost < 0) {
+                showAlert("Помилка", "Будь ласка, введіть дісну суму ставки!");
+                return;
+            }
+
+            const player = players.find(p => p.id === winnerId);
+            if (!player) {
+                showAlert("Помилка", "Оберіть переможця аукціону!");
+                return;
+            }
+
+            // Check inventory limit (max 3 items)
+            if (player.inventory.length >= 3) {
+                showAlert("Ліміт досягнуто", `У гравця ${player.name} вже максимальна кількість стендів (3/3)!`);
+                return;
+            }
+
+            if (player.money < cost) {
+                showAlert("Недостатньо коштів", `У гравця ${player.name} недостатньо грошей! Баланс: $${player.money.toLocaleString()}, ставка: $${cost.toLocaleString()}`);
+                return;
+            }
+
+            // Deduct money & add to player inventory
+            const card = deck[currentCardIndex];
+            player.money -= cost;
+            player.inventory.push({
+                ...card,
+                boughtCost: cost
+            });
+
+            // Move to next card
+            currentCardIndex++;
+            updateLiveBalances();
+            renderCurrentCard();
+        }
+
+        function skipCard() {
+            currentCardIndex++;
+            renderCurrentCard();
+        }
+
+        function endGame() {
+            switchScreen('screen-results');
+            const container = document.getElementById('results-container');
+            container.innerHTML = '';
+
+            // Calculate score for leaderboard
+            players.forEach(player => {
+                const totalSpent = player.inventory.reduce((sum, item) => sum + item.boughtCost, 0);
+                const peakStands = player.inventory.filter(item => item.peak).length;
+                const normalStands = player.inventory.length - peakStands;
+                
+                // Base score: 50 per Peak, 15 per Normal, + remaining money / 1 (as tie breaker point)
+                player.score = (peakStands * 50) + (normalStands * 15) + (player.money / 1);
+                player.totalSpent = totalSpent;
+                player.peakStandsCount = peakStands;
+            });
+
+            // Sort descending by score
+            players.sort((a, b) => b.score - a.score);
+
+            // Display Winner Banner if we have players
+            if (players.length > 0) {
+                const bannerContainer = document.getElementById('banners-container');
+                const winnerBanner = document.getElementById('winner-banner');
+                bannerContainer.classList.remove('hidden');
+                winnerBanner.src = 'assets/banners/rank_1.png';
+                winnerBanner.onerror = function() {
+                    this.onerror = null;
+                    this.src = `https://placehold.co/1200x300/2e1065/fbbf24?text=WINNER:+${encodeURIComponent(players[0].name)}`;
+                };
+            }
+
+            players.forEach((player, index) => {
+                const cardDiv = document.createElement('div');
+                
+                // Highlight Top 3
+                let borderClass = 'border-purple-700/60';
+                let rankBadge = '';
+                if (index === 0) {
+                    borderClass = 'border-yellow-400 shadow-[0_0_15px_rgba(250,204,21,0.5)]';
+                    rankBadge = `<span class="absolute -top-3 -left-3 bg-yellow-400 text-yellow-900 font-title font-bold w-10 h-10 flex items-center justify-center rounded-full border-4 border-jojo-dark shadow-lg text-xl">1</span>`;
+                } else if (index === 1) {
+                    borderClass = 'border-gray-400 shadow-[0_0_10px_rgba(156,163,175,0.4)]';
+                    rankBadge = `<span class="absolute -top-3 -left-3 bg-gray-400 text-gray-900 font-title font-bold w-10 h-10 flex items-center justify-center rounded-full border-4 border-jojo-dark shadow-lg text-xl">2</span>`;
+                } else if (index === 2) {
+                    borderClass = 'border-amber-700 shadow-[0_0_10px_rgba(180,83,9,0.4)]';
+                    rankBadge = `<span class="absolute -top-3 -left-3 bg-amber-700 text-amber-100 font-title font-bold w-10 h-10 flex items-center justify-center rounded-full border-4 border-jojo-dark shadow-lg text-xl">3</span>`;
+                } else {
+                    rankBadge = `<span class="absolute -top-3 -left-3 bg-slate-700 text-slate-300 font-title font-bold w-10 h-10 flex items-center justify-center rounded-full border-4 border-jojo-dark shadow-lg text-lg">${index + 1}</span>`;
+                }
+
+                cardDiv.className = `relative bg-slate-900/80 border-2 ${borderClass} p-5 rounded-2xl flex flex-col justify-between transition-all`;
+
+                let inventoryHTML = '';
+                if (player.inventory.length === 0) {
+                    inventoryHTML = `<p class="text-xs text-gray-500 italic mt-2">Не куплено жодного стенду</p>`;
+                } else {
+                    inventoryHTML = `
+                        <div class="mt-3 space-y-2">
+                            <p class="text-xs font-bold text-purple-300 uppercase tracking-wider">Придбані Стенди (${player.inventory.length}):</p>
+                            <div class="space-y-1.5 max-h-48 overflow-y-auto pr-1">
+                                ${player.inventory.map(item => `
+                                    <div class="bg-purple-950/60 p-2 rounded-lg border border-purple-800/40 flex justify-between items-center text-xs">
+                                        <div class="flex items-center gap-1.5">
+                                            ${item.peak ? '<span class="text-red-400 font-bold" title="Peak Stand">🔥</span>' : '⭐'}
+                                            <span class="font-semibold text-gray-200">${item.name}</span>
+                                        </div>
+                                        <span class="text-emerald-400 font-bold">$${item.boughtCost.toLocaleString()}</span>
+                                    </div>
+                                `).join('')}
+                            </div>
+                        </div>
+                    `;
+                }
+
+                cardDiv.innerHTML = `
+                    ${rankBadge}
+                    <div>
+                        <div class="flex justify-between items-center border-b border-purple-800/60 pb-3 mb-3 ml-4">
+                            <div class="flex items-center gap-3">
+                                <img src="${player.emoji}" onerror="this.src='https://placehold.co/100x100/4c1d95/fbbf24?text=${player.name.charAt(0)}'" class="w-10 h-10 rounded-full object-cover border-2 border-purple-500">
+                                <h3 class="text-2xl font-title text-jojo-gold">${player.name}</h3>
+                            </div>
+                            <div class="flex flex-col items-end">
+                                ${player.peakStandsCount > 0 ? `<span class="bg-red-950 border border-red-500 text-red-300 text-xs px-2.5 py-0.5 rounded-full font-bold mb-1">🔥 ${player.peakStandsCount} Пік</span>` : ''}
+                                <span class="text-[10px] text-gray-400 uppercase tracking-wider">Бали: ${Math.floor(player.score)}</span>
+                            </div>
+                        </div>
+
+                        <div class="grid grid-cols-2 gap-2 text-xs mb-3">
+                            <div class="bg-slate-950 p-2.5 rounded-xl border border-purple-900/40">
+                                <span class="text-gray-400 block mb-0.5">Залишок грошей:</span>
+                                <span class="text-base font-bold text-emerald-400 font-title">$${player.money.toLocaleString()}</span>
+                            </div>
+                            <div class="bg-slate-950 p-2.5 rounded-xl border border-purple-900/40">
+                                <span class="text-gray-400 block mb-0.5">Витрачено:</span>
+                                <span class="text-base font-bold text-purple-300 font-title">$${player.totalSpent.toLocaleString()}</span>
+                            </div>
+                        </div>
+
+                        ${inventoryHTML}
+                    </div>
+                `;
+
+                container.appendChild(cardDiv);
+            });
+        }
+
+        function resetToMenu() {
+            switchScreen('screen-menu');
+        }
+
+        function showInventoryModal() {
+            const container = document.getElementById('inventory-modal-content');
+            container.innerHTML = '';
+
+            players.forEach(player => {
+                const playerDiv = document.createElement('div');
+                playerDiv.className = 'bg-slate-900/60 p-4 rounded-xl border border-purple-800/50 mb-3';
+                
+                let inventoryHTML = '';
+                if (player.inventory.length === 0) {
+                    inventoryHTML = '<p class="text-xs text-gray-500 italic mt-2">Немає куплених стендів</p>';
+                } else {
+                    inventoryHTML = `
+                        <div class="mt-2 space-y-1.5">
+                            ${player.inventory.map(item => `
+                                <div class="bg-purple-950/40 p-2 rounded-lg border border-purple-800/30 flex justify-between items-center text-xs">
+                                    <div class="flex items-center gap-1.5">
+                                        ${item.peak ? '<span class="text-red-400">🔥</span>' : '⭐'}
+                                        <span class="font-semibold text-gray-200">${item.name}</span>
+                                    </div>
+                                    <span class="text-emerald-400 font-bold">$${item.boughtCost}</span>
+                                </div>
+                            `).join('')}
+                        </div>
+                    `;
+                }
+
+                playerDiv.innerHTML = `
+                    <div class="flex justify-between items-center border-b border-purple-800/40 pb-2 mb-2">
+                        <div class="flex items-center gap-2">
+                            <img src="${player.emoji}" onerror="this.src='https://placehold.co/100x100/4c1d95/fbbf24?text=${player.name.charAt(0)}'" class="w-8 h-8 rounded-full border border-jojo-gold object-cover bg-jojo-dark">
+                            <h4 class="font-title text-jojo-gold text-lg">${player.name}</h4>
+                        </div>
+                        <div class="text-right">
+                            <span class="text-[10px] text-gray-400 block uppercase">Баланс</span>
+                            <span class="text-emerald-400 font-bold font-title">$${player.money}</span>
+                        </div>
+                    </div>
+                    ${inventoryHTML}
+                `;
+                container.appendChild(playerDiv);
+            });
+
+            document.getElementById('inventory-modal').classList.remove('hidden');
+        }
+
+        function closeInventoryModal() {
+            document.getElementById('inventory-modal').classList.add('hidden');
+        }
+
+        window.onload = function() {
+            renderPlayerInputs();
+        };
+    </script>
+</body>
+</html>
